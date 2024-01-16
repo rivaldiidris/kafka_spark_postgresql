@@ -1,0 +1,18 @@
+{
+    "type": "record",
+    "namespace": "io.loan",
+    "name": "loan",
+    "fields": [
+        {"name": "loan_id", "type": "string", "doc": "loan id"},
+        {"name": "loan_amount", "type": "int", "doc": "loan amount"},
+        {"name": "borrower_id", "type": "string", "doc": "borrower id"},
+        {"name": "status", "type": "string", "doc": "loan status"},
+        {"name": "partner", "type": "string", "doc": "partner company"},
+        {"name": "current_dpd", "type": "int", "doc": "current dpd"},
+        {"name": "max_dpd", "type": "int", "doc": "maximum dpd"},
+        {"name": "interest_rate", "type": "float", "doc": "interest of rate"},
+        {"name": "loan_term", "type": "int", "doc": "loan term"},
+        {"name": "created_at", "type": "int", "logicaltype": "date"},
+        {"name": "updated_at", "type": "int", "logicaltype": "date"}
+    ]
+}

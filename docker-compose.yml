@@ -1,0 +1,200 @@
+# version: "3.8"
+# services:
+#   db:
+#     image: postgres
+#     container_name: local_pgdb
+#     restart: always
+#     ports:
+#       - "5433:5433"
+#     environment:
+#       POSTGRES_USER: user-name
+#       POSTGRES_PASSWORD: strong-password
+#     volumes:
+#       - local_pgdata:/var/lib/postgresql/data
+#   pgadmin:
+#     image: dpage/pgadmin4
+#     container_name: pgadmin4_container
+#     restart: always
+#     ports:
+#       - "8888:80"
+#     environment:
+#       PGADMIN_DEFAULT_EMAIL: user-name@domain-name.com
+#       PGADMIN_DEFAULT_PASSWORD: strong-password
+#     volumes:
+#       - pgadmin-data:/var/lib/pgadmin
+#   pyspark:
+#     image: jupyter/pyspark-notebook:latest
+#     environment:
+#       JUPYTER_ENABLE_LAB: "yes"
+#     ports:
+#       - "9999:8888"
+#     volumes:
+#       - /Users/macbookpro/Downloads/portofolio/spark_postgresql/DE_Rand_test.xlsx:/home/jovyan/work/DE_Rand_test.xlsx
+#       - /Users/macbookpro/Downloads/portofolio/spark_postgresql/packages/spark-excel_2.12-0.13.5.jar:/home/jovyan/work/packages/spark-excel_2.12-0.13.5.jar
+#       - /Users/macbookpro/Downloads/portofolio/spark_postgresql/utils:/home/jovyan/work/utils/
+#       - /Users/macbookpro/Downloads/portofolio/spark_postgresql/main.py:/home/jovyan/work/main.py
+#       - /Users/macbookpro/Downloads/portofolio/spark_postgresql/pyspark.ipynb:/home/jovyan/work/pyspark.ipynb
+#       - /Users/macbookpro/Downloads/portofolio/spark_postgresql/query.sql:/home/jovyan/work/query.sql
+#       - /Users/macbookpro/Downloads/portofolio/spark_postgresql/testing_oop.ipynb:/home/jovyan/work/testing_oop.ipynb
+#       - /Users/macbookpro/Downloads/portofolio/spark_postgresql/requirements.txt:/home/jovyan/work/requirements.txt
+
+# volumes:
+#   local_pgdata:
+#   pgadmin-data:
+
+################################################################################################################
+#################                docker compose kafka streaming postgresql                     #################
+################################################################################################################
+
+
+
+
+version: '2'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.5.1
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  broker:
+    image: confluentinc/cp-server:5.5.1
+    hostname: broker
+    container_name: broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9101
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: broker:29092
+      CONFLUENT_METRICS_REPORTER_ZOOKEEPER_CONNECT: zookeeper:2181
+      CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
+      CONFLUENT_METRICS_ENABLE: 'true'
+      CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
+      KAFKA_LOG4J_LOGGERS: org.apache.kafka=INFO
+  
+  schema-registry:
+    image: confluentinc/cp-schema-registry:5.5.1
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - zookeeper
+      - broker
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: 'zookeeper:2181'
+  
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:5.5.1
+    hostname: control-center
+    container_name: control-center
+    depends_on:
+      - zookeeper
+      - broker
+      - schema-registry
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'broker:29092'
+      CONTROL_CENTER_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021
+  
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:5.5.1
+    container_name: kafka-connect
+    depends_on:
+      - broker
+      - schema-registry
+      - db  # Ensure that the PostgreSQL service is ready before starting Kafka Connect
+    ports:
+      - "8083:8083"
+    # restart: always
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: 'broker:29092'
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: kafka-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: /usr/share/java
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_CONFIG_STORAGE_TOPIC_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_TOPIC_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC_REPLICATION_FACTOR: 1
+      CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
+      CONNECT_PLUGIN_PATH: /usr/share/java
+      CONNECT_LOG4J_LOGGERS: org.apache.kafka.connect=INFO
+
+      # # PostgreSQL Connector Configuration
+      # CONNECTOR_NAME: postgres-connector
+      # CONNECTOR_CLASS: io.confluent.connect.jdbc.JdbcSourceConnector
+      # CONNECTOR_TASKS_MAX: 1
+      # CONNECTOR_TOPIC_PREFIX: postgres_topic_
+      # CONNECTOR_POLL_INTERVAL_MS: 5000
+      # CONNECTOR_BATCH_MAX_ROWS: 100
+      # CONNECTOR_MODE: incrementing
+      # CONNECTOR_INCREMENTING_COLUMN_NAME: message_count
+      # CONNECTOR_CONNECTION_URL: jdbc:postgresql://db:5434/postgres
+      # CONNECTOR_CONNECTION_USER: admin
+      # CONNECTOR_CONNECTION_PASSWORD: admin
+      # CONNECTOR_TABLE_WHITELIST: loan_stream
+  
+  db:
+    image: postgres
+    container_name: local_pgdb_2
+    restart: always
+    ports:
+      - "5434:5434"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - local_pgdata:/var/lib/postgresql/data
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4_container_2
+    restart: always
+    ports:
+      - "8888:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: user-name@domain-name.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  local_pgdata:
+  pgadmin-data:
