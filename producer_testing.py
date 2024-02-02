@@ -9,8 +9,8 @@ import random
 from confluent_kafka import SerializingProducer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
-
-from kafka_config.config import read_config, read_source_avro_schema
+from utils.spotify_utils import get_user_recently_played_track
+from kafka_config.config import read_config, read_spotify_creds, read_source_avro_schema
 
 logging.basicConfig(level=logging.INFO)
 
@@ -20,10 +20,10 @@ def acked(err, msg):
     else:
         logging.info(f"Message produced: {msg.value()}")
 
-
-
 config = read_config()
 source_avro_schema = read_source_avro_schema()
+spotify_creds = read_spotify_creds()
+
 topic = config["kafka"]["subscribe"]
 
 avro_serializer = AvroSerializer(
@@ -41,31 +41,35 @@ producer = SerializingProducer(
     }
 )
 
+client_id = spotify_creds["spotify"]["SPOTIFY_CLIENT_ID"]
+client_key = spotify_creds["spotify"]["SPOTIFY_CLIENT_SECRET"]
+uri = spotify_creds["spotify"]["SPOTIFY_REDIRECT_URI"]
+scope = "user-read-recently-played"
+cache_filepath = '/root/kafka/kafka_spark_postgresql/kafka_config/token.json'
+
+message = get_user_recently_played_track(client_id, client_key, uri, scope, cache_filepath)
+
 # while True:
 
-for message_count in range (10):
+for message_count in message:
+    
+    artist = message_count.get("artist_name")
+    title = message_count.get("title")
+    album = message_count.get("album_name")
+    played_at = message_count.get("played_at")
 
-    message = {
-        "loan_id": str(uuid.uuid1()),
-        "loan_amount": int(uniform(0, 10000000)),
-        "borrower_id": str(uuid.uuid1()),
-        "status": random.choice(
-            ["CLOSED", "SUBMITTED", "LIVE", "CANCELED"]
-        ),
-        "partner": random.choice(
-            ["BANK_A", "BANK_B", "FINTECH_A", "FINTECH_B"]
-        ),
-        "current_dpd": int(uniform(0, 100)),
-        "max_dpd": int(uniform(0, 100)),
-        "interest_rate": round(uniform(0, 5), 2),
-        "loan_term": int(uniform(0, 100)),
-        "created_at": int(datetime.now().timestamp()),
-        "updated_at": int(datetime.now().timestamp())
+    payload = {
+        "id": str(uuid.uuid1()),
+        "artist": str(artist),
+        "title": str(title),
+        "album": str(album),
+        "played_at": str(played_at)
     }
 
+    # print(payload)
     producer.produce(
         topic=topic,
-        value=message,
+        value=payload,
         on_delivery=acked,
     )
 

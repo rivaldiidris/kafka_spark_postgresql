@@ -128,7 +128,7 @@ services:
     depends_on:
       - broker
       - schema-registry
-      - db  # Ensure that the PostgreSQL service is ready before starting Kafka Connect
+      #- db   Ensure that the PostgreSQL service is ready before starting Kafka Connect
     ports:
       - "8083:8083"
     # restart: always
@@ -154,7 +154,6 @@ services:
       CONNECT_OFFSET_STORAGE_TOPIC_REPLICATION_FACTOR: 1
       CONNECT_STATUS_STORAGE_TOPIC_REPLICATION_FACTOR: 1
       CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
-      CONNECT_PLUGIN_PATH: /usr/share/java
       CONNECT_LOG4J_LOGGERS: org.apache.kafka.connect=INFO
 
       # # PostgreSQL Connector Configuration
@@ -171,30 +170,30 @@ services:
       # CONNECTOR_CONNECTION_PASSWORD: admin
       # CONNECTOR_TABLE_WHITELIST: loan_stream
   
-  db:
-    image: postgres
-    container_name: local_pgdb_2
-    restart: always
-    ports:
-      - "5434:5434"
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-    volumes:
-      - local_pgdata:/var/lib/postgresql/data
+#   db:
+#     image: postgres
+#     container_name: local_pgdb_2
+#     restart: always
+#     ports:
+#       - "5434:5434"
+#     environment:
+#       POSTGRES_USER: admin
+#       POSTGRES_PASSWORD: admin
+#     volumes:
+#       - local_pgdata:/var/lib/postgresql/data
   
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin4_container_2
-    restart: always
-    ports:
-      - "8888:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: user-name@domain-name.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
+#   pgadmin:
+#     image: dpage/pgadmin4
+#     container_name: pgadmin4_container_2
+#     restart: always
+#     ports:
+#       - "8888:80"
+#     environment:
+#       PGADMIN_DEFAULT_EMAIL: user-name@domain-name.com
+#       PGADMIN_DEFAULT_PASSWORD: admin
+#     volumes:
+#       - pgadmin-data:/var/lib/pgadmin
 
-volumes:
-  local_pgdata:
-  pgadmin-data:
+# volumes:
+#   local_pgdata:
+#   pgadmin-data:
