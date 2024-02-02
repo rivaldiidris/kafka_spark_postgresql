@@ -73,4 +73,5 @@ for message_count in message:
         on_delivery=acked,
     )
 
+
     producer.poll(1)
